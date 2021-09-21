@@ -21,50 +21,32 @@ my_path = 'C:/Users/bruno/OneDrive/Área de Trabalho/MSc Machine Learning-DESKTO
 
 np.random.seed(0)
 
-parser = argparse.ArgumentParser(description='Random Games of Skill form DPP')
+parser = argparse.ArgumentParser(description='Arguments for RAPSRO experiments')
 
 optimizer = 'scipy'
-real = 1
-if real == 1:
-    parser.add_argument('--game', type=str, default='gos')
-    parser.add_argument('--dim_list', type=list, default=[50])
-    parser.add_argument('--nb_iters', type=int, default=[40, 40])
-    parser.add_argument('--num_experiments', type=int, default=8)
-    parser.add_argument('--num_threads', type=int, default=8)
-    parser.add_argument('--mixed', type=bool, default=True)
-    parser.add_argument('--iters_nfg', type=int, default=1000)
-    parser.add_argument('--dpp_gamma', type=int, default=20)
-    parser.add_argument('--gamma_list', type=list, default=[20, 6, -6, -20])
-    #parser.add_argument('--gamma_list', type=list, default=[20, 6])
-    parser.add_argument('--calc_ef', type=bool, default=True)
-    parser.add_argument('--load_results', type=bool, default=True)
-    parser.add_argument('--calc_risk_ne', type=bool, default=True)
-    parser.add_argument('--method', type=str, default='gamma')
-    parser.add_argument('--er', type=float, default=-0.001)
-else:
-    parser.add_argument('--game', type=str, default='gos')
-    parser.add_argument('--dim_list', type=list, default=[10])
-    parser.add_argument('--nb_iters', type=int, default=[3, 3])
-    parser.add_argument('--num_experiments', type=int, default=2)
-    parser.add_argument('--num_threads', type=int, default=8)
-    parser.add_argument('--mixed', type=bool, default=True)
-    parser.add_argument('--iters_nfg', type=int, default=10)
-    parser.add_argument('--dpp_gamma', type=int, default=20)
-    parser.add_argument('--gamma_list', type=list, default=[20])
-    parser.add_argument('--calc_ef', type=bool, default=False)
-    parser.add_argument('--load_results', type=bool, default=False)
-    parser.add_argument('--calc_risk_ne', type=bool, default=False)
-    parser.add_argument('--method', type=str, default='gamma')
-    parser.add_argument('--er', type=float, default=-0.001)
-
+parser.add_argument('--game', type=str, default='gos')
+parser.add_argument('--dim_list', type=list, default=[50])
+parser.add_argument('--nb_iters', type=int, default=[40, 40])
+parser.add_argument('--num_experiments', type=int, default=8)
+parser.add_argument('--num_threads', type=int, default=8)
+parser.add_argument('--mixed', type=bool, default=True)
+parser.add_argument('--iters_nfg', type=int, default=1000)
+parser.add_argument('--dpp_gamma', type=int, default=20)
+parser.add_argument('--gamma_list', type=list, default=[20, 6, -6, -20])
+#parser.add_argument('--gamma_list', type=list, default=[20, 6])
+parser.add_argument('--calc_ef', type=bool, default=True)
+parser.add_argument('--load_results', type=bool, default=False)
+parser.add_argument('--calc_risk_ne', type=bool, default=True)
+parser.add_argument('--method', type=str, default='gamma')
+parser.add_argument('--er', type=float, default=-0.001)
 args = parser.parse_args()
 
 # metrics that will be plotted in results charts
 metrics = ['exp', 'cardinality', 'er_risk', 'er_ne', 'er_unif',
-           'var_risk', 'var_ne', 'var_unif', 'var_exp', 'entropy', 'runtime']
+           'var_risk', 'var_ne', 'var_unif', 'var_exp', 'entropy', 'runtime', 'strat']
 LR = 0.5
 TH = 0.03
-gap = 0.05
+gap = 0.025
 er_range = np.arange(-1, 1.05, gap)
 
 expected_card = []
@@ -74,8 +56,10 @@ root_path='C:/Users/bruno/OneDrive/Área de Trabalho/MSc Machine Learning-DESKTO
 data_path = 'C:/Users/bruno/OneDrive/Área de Trabalho/MSc Machine Learning-DESKTOP-N01V9DD/Project/Images'
 
 def run_dummy_exp(gamma_list, PATH_RESULTS):
-    payoffs = np.array([[1, -101],
-                        [-1, 100]])
+    # payoffs = np.array([[1, -101],
+    #                     [-1, 100]])
+    payoffs = np.array([[1, -3],
+                        [-1, 2]])
     strat = 0.5*np.ones(2)
     results = {}
     results[0] = get_br_to_strat(strat, payoffs=payoffs)
@@ -96,71 +80,6 @@ def run_dummy_exp(gamma_list, PATH_RESULTS):
 def clean_range(r):
     result = [r[i] if r[i] != r[i + 1] else np.nan for i in range(r.shape[0] - 1)]  # remove repeated values
     return result
-
-def clean_range2(var_range):
-    my_array = np.array(var_range)
-    na_count = np.sum(np.isnan(my_array), axis=1)
-    s = np.where(na_count == np.min(na_count))[0][0]
-    r = my_array[s, :]
-    result = [r[i] if r[i] != r[i + 1] else np.nan for i in range(r.shape[0] - 1)]  # remove repeated values
-    return result, s
-
-def plot_ef2(results, params, PATH_RESULTS):
-    var_dict = {}
-    var_dict['unif'], s = clean_range2(results['var_range'])
-    var_dict['ne'], s_ne = clean_range2(results['var_range_ne'])
-    var_dict['risk'], s_risk = clean_range2(results['var_range_risk'])
-    s_list = [s, s_ne, s_risk]
-
-    scatter_er = {}
-    scatter_var = {}
-    opponents = ['unif', 'ne', 'risk']
-    for opponent in opponents:
-        scatter_er[opponent] = {}
-        scatter_var[opponent] = {}
-        if params['psro_risk']:
-            for gamma in params['gamma_list']:
-                if gamma > 0:
-                    my_key = 'rapsro_g' + str(gamma)
-                    scatter_er[opponent][my_key] = results['psro_risk_g' + str(gamma) + '_er_' + opponent][s][0][-1]
-                    scatter_var[opponent][my_key] = results['psro_risk_g' + str(gamma) + '_var_' + opponent][s][0][-1]
-        if params['psro']:
-            scatter_er[opponent]['psro'] = results['psro_er_' + opponent][s][0][-1]
-            scatter_var[opponent]['psro'] = results['psro_var_' + opponent][s][0][-1]
-
-        if params['dpp_psro']:
-            scatter_er[opponent]['dpp_psro'] = results['dpp_psro_er_' + opponent][s][0][-1]
-            scatter_var[opponent]['dpp_psro'] = results['dpp_psro_var_' + opponent][s][0][-1]
-
-        if params['dpp_risk']:
-            scatter_er[opponent]['dpp_risk'] = results['dpp_risk_er_' + opponent][s][0][-1]
-            scatter_var[opponent]['dpp_risk'] = results['dpp_risk_var_' + opponent][s][0][-1]
-
-    # get return and var for best response based on right experiment
-    er_br = []
-    var_br = []
-    for i, s in enumerate(s_list):
-        er_br.append(results['er_br'][s][i])
-        var_br.append(results['var_br'][s][i])
-
-    # plot efficient frontier
-    fig, ax = plt.subplots(ncols=3, figsize=(15, 10))
-    for i, opponent in enumerate(opponents):
-        ax[i].plot(var_dict[opponent], er_range[:-1], label='efficient frontier')
-        ax[i].scatter(var_br[i], er_br[i], marker='x', label='standard br', c='r')
-        x_val = list(scatter_var[opponent].values())
-        y_val = list(scatter_er[opponent].values())
-        ax[i].scatter(x_val, y_val, marker='D', c='g')
-        for j, txt in enumerate(scatter_er[opponent].keys()):
-            ax[i].annotate(txt, (x_val[j], y_val[j]))
-        ax[i].legend(loc='lower right')
-        ax[i].xaxis.set_major_formatter(mpl.ticker.StrMethodFormatter('{x:,.2f}'))
-
-    ax[0].set(ylabel='expected return', title='EF vs uniform')
-    ax[1].set(xlabel='Variance', title='EF vs NE')
-    ax[2].set(title='EF vs RANE')
-    plt.tight_layout()
-    plt.savefig(os.path.join(PATH_RESULTS, 'efficient_frontier_old.pdf'))
 
 def plot_ef(results, params, PATH_RESULTS):
     var_dict = {}
@@ -193,7 +112,10 @@ def plot_ef(results, params, PATH_RESULTS):
             var_array = np.nanmean(results['psro_var_' + opponent], axis=0).squeeze()
             scatter_er[opponent]['psro'] = er_array[-1]
             s = np.where(er_range > er_array[-1])[0][0] - 1
-            slope = (var_dict[opponent][s + 1] - var_dict[opponent][s]) / gap
+            if s < len(var_dict[opponent]) - 1:
+                slope = (var_dict[opponent][s + 1] - var_dict[opponent][s]) / gap
+            else:
+                slope = (var_dict[opponent][s] - var_dict[opponent][s-1]) / gap
             var_limit = var_dict[opponent][s] + slope * (er_array[-1] - er_range[s])
             scatter_var[opponent]['psro'] = np.nanmax([var_array[-1], var_limit])
 
@@ -202,7 +124,10 @@ def plot_ef(results, params, PATH_RESULTS):
             var_array = np.nanmean(results['dpp_psro_var_' + opponent], axis=0).squeeze()
             scatter_er[opponent]['dpp'] = er_array[-1]
             s = np.where(er_range > er_array[-1])[0][0] - 1
-            slope = (var_dict[opponent][s + 1] - var_dict[opponent][s]) / gap
+            if s < len(var_dict[opponent]) - 1:
+                slope = (var_dict[opponent][s + 1] - var_dict[opponent][s]) / gap
+            else:
+                slope = (var_dict[opponent][s] - var_dict[opponent][s-1]) / gap
             var_limit = var_dict[opponent][s] + slope * (er_array[-1] - er_range[s])
             scatter_var[opponent]['dpp'] = np.maximum(var_array[-1], var_limit)
 
@@ -211,7 +136,10 @@ def plot_ef(results, params, PATH_RESULTS):
             var_array = np.nanmean(results['dpp_risk_var_' + opponent], axis=0).squeeze()
             scatter_er[opponent]['dpp_risk'] = er_array[-1]
             s = np.where(er_range > er_array[-1])[0][0] - 1
-            slope = (var_dict[opponent][s + 1] - var_dict[opponent][s]) / gap
+            if s < len(var_dict[opponent]) - 1:
+                slope = (var_dict[opponent][s + 1] - var_dict[opponent][s]) / gap
+            else:
+                slope = (var_dict[opponent][s] - var_dict[opponent][s-1]) / gap
             var_limit = var_dict[opponent][s] + slope * (er_array[-1] - er_range[s])
             scatter_var[opponent]['dpp_risk'] = np.maximum(var_array[-1], var_limit)
 
@@ -221,16 +149,18 @@ def plot_ef(results, params, PATH_RESULTS):
     er_ne = np.mean(results['er_ne'], axis=0)
     var_ne = np.mean(results['var_ne'], axis=0)
 
-    #plot frontier only for ne
+    #plot frontier for ne
     fig, ax = plt.subplots()
     opponent = 'ne'
-    ax.plot(var_dict[opponent], er_range[:-1], label='efficient frontier')
+    zero_pos = np.where(er_range > -0.01)[0][0]
+    #ax.plot(var_dict[opponent], er_range[:-1], label='efficient frontier')
+    ax.plot(var_dict[opponent][:zero_pos+1], er_range[:zero_pos+1], label='efficient frontier')
     ax.scatter(var_ne, er_ne, marker='x', label='ne strat', c='r')
     x_val = list(scatter_var[opponent].values())
     y_val = list(scatter_er[opponent].values())
     ax.scatter(x_val, y_val, marker='D', c='g')
     for j, txt in enumerate(scatter_er[opponent].keys()):
-        if txt != 'rapsro_g6':
+        #if txt != 'rapsro_g6':
             ax.annotate(txt, (x_val[j], y_val[j]))
     ax.legend(loc='lower right')
     ax.xaxis.set_major_formatter(mpl.ticker.StrMethodFormatter('{x:,.2f}'))
@@ -254,6 +184,33 @@ def plot_runtime(results, params, PATH_RESULTS):
     ax.bar(x=list(runtime_results.keys()), height=runtime_results.values())
     ax.set(title='Average runtime', ylabel='avg runtime (min)')
     plt.savefig(os.path.join(PATH_RESULTS, 'runtime.pdf'))
+
+def plot_dist(results, params, PATH_RESULTS):
+    strat_ne = np.array(results['strat_ne'])
+    runtime_results = {}
+    labels = []
+    if params['psro_risk']:
+        for gamma in args.gamma_list:
+            if gamma > 0:
+                my_key = 'psro_risk_g' + str(gamma) + '_strat'
+                strat = np.array(results[my_key]).squeeze()
+                runtime_results[my_key] = np.mean(calc_euc_dist(strat, strat_ne))
+                labels.append('rapsro_g' + str(gamma))
+    if params['psro']:
+        my_key = 'psro_strat'
+        strat = np.array(results[my_key]).squeeze()
+        runtime_results[my_key] = np.mean(calc_euc_dist(strat, strat_ne))
+        labels.append('psro')
+    if params['dpp_psro']:
+        my_key = 'dpp_psro_strat'
+        strat = np.array(results[my_key]).squeeze()
+        runtime_results[my_key] = np.mean(calc_euc_dist(strat, strat_ne))
+        labels.append('dpp')
+
+    fig, ax = plt.subplots()
+    ax.bar(x=labels, height=runtime_results.values())
+    ax.set(title='Eucledian Distance to NE', ylabel='eucledian distance to NE')
+    plt.savefig(os.path.join(PATH_RESULTS, 'dist_to_ne.pdf'))
 
 # Search over the pure strategies to find the BR to a strategy
 def get_br_to_strat(strat, payoffs=None, verbose=False):
@@ -429,7 +386,8 @@ def get_exploitability(pop, payoffs, iters=500, risk=False, gamma=10, mixed=True
             'var_risk': var_risk,
             'var_ne': var_ne,
             'var_unif': var_unif,
-            'entropy': entropy
+            'entropy': entropy,
+            'strat': list(strat)
             }
 
 def calc_euc_dist(arr1, arr2):
@@ -535,6 +493,7 @@ def psro_steps_risk(iters=5, payoffs=None, verbose=False, seed=0,
             emp_game_matrix = pop[:k] @ payoffs @ pop[:k].T
             if emp_game_matrix.shape[0] > 1:
                 meta_nash, _, _ = fictitious_play(payoffs=emp_game_matrix, iters=500, risk=risk, gamma=gamma, method=method, er=er)
+                # meta_nash, _, _ = fictitious_play(payoffs=emp_game_matrix, iters=500, risk=False)
             else:
                 meta_nash = np.array([[1.]])
             #meta_nash, _, _ = fictitious_play(payoffs=emp_game_matrix, iters=1000, risk=False)
@@ -573,6 +532,7 @@ def psro_steps_risk(iters=5, payoffs=None, verbose=False, seed=0,
         #l_cards.append(l_card)
         results['cardinality'].append(l_card)
 
+    results['strat'] = results['strat'][-1]
     end_psro = time.time()
     results['runtime'] = end_psro - start_psro
     return pop, results
@@ -644,6 +604,7 @@ def psro_steps(iters=5, payoffs=None, verbose=False, seed=0,
         #l_cards.append(l_card)
         results['cardinality'].append(l_card)
 
+    results['strat'] = results['strat'][-1]
     end_psro = time.time()
     results['runtime'] = end_psro - start_psro
     return pop, results
@@ -896,6 +857,7 @@ def run_experiment(param_seed):
     results['mat_cov'] = np.cov(payoffs.T)
     results['mat_skew'] = stats.skew(payoffs, axis=None)
     results['mat_kurt'] = stats.kurtosis(payoffs, axis=None)
+    print('matrix kurtosis is {0}'.format(results['mat_kurt']))
 
     # get efficient frontier
     if args.calc_ef:
@@ -903,20 +865,6 @@ def run_experiment(param_seed):
         init_arr = np.random.rand(payoffs.shape[0], ntries)
         init_arr /= np.sum(init_arr, axis=0)
         init_arr[:, 0] = 0
-
-        #delete after
-        # start = time.time()
-        # #my_var = get_min_var(strat_ne, payoffs=payoffs, expected_return=-0.1, init_arr=init_arr)
-        # var_range_ne = [get_min_var(strat_ne, payoffs=payoffs, expected_return=exp_ret, init_arr=init_arr)
-        #                 for exp_ret in er_range]
-        # end = time.time()
-        # print('trial 1: runtime is {0}'.format(end-start))
-        #
-        # start = time.time()
-        # var_range_ne2 = [get_min_var_cp(strat_ne, payoffs=payoffs, expected_return=exp_ret, init_arr=init_arr)
-        #                 for exp_ret in er_range]
-        # end = time.time()
-        # print('trial 2: runtime is {0}'.format(end-start))
 
         #dont delete this part
         if args.load_results:
@@ -1065,19 +1013,19 @@ def run_experiments(num_experiments=1, iters=40, num_threads=20, dim=60, lr=0.6,
 
     if args.load_results:
         data_file = sampling + '_' + game + str(dim) + '.p'
-        #data_file = sampling + '_' + game + str(dim) + '_new.p'
+        #data_file = sampling + '_' + game + str(dim) + '_old.p'
         #data_path = 'C:/Users/bruno/OneDrive/Área de Trabalho/MSc Machine Learning-DESKTOP-N01V9DD/Project/Images/20210813-180624_50_uniform_True'
         data_file = os.path.join(data_path, data_file)
         params['old_results'] = pd.read_pickle(data_file)
 
         # delete this after
-        results = params['old_results']
-        time_string = time.strftime("%Y%m%d-%H%M%S")
-        PATH_RESULTS = os.path.join(root_path, 'results', time_string + '_' + str(dim) + '_' + game + '_'
-                                    + sampling + '_' + str(mixed))
-        if not os.path.exists(PATH_RESULTS):
-            os.makedirs(PATH_RESULTS)
-        plot_runtime(results, params, PATH_RESULTS)
+        # results = params['old_results']
+        # time_string = time.strftime("%Y%m%d-%H%M%S")
+        # PATH_RESULTS = os.path.join(root_path, 'results', time_string + '_' + str(dim) + '_' + game + '_'
+        #                             + sampling + '_' + str(mixed))
+        # if not os.path.exists(PATH_RESULTS):
+        #     os.makedirs(PATH_RESULTS)
+        # plot_dist(results, params, PATH_RESULTS)
 
     pool = mp.Pool()
     result = pool.map(run_experiment, [(params, i) for i in range(num_experiments)])
@@ -1098,6 +1046,7 @@ def run_experiments(num_experiments=1, iters=40, num_threads=20, dim=60, lr=0.6,
 
     file_name = sampling + '_' + game + str(dim) + '.p'
     pickle.dump(results, open(os.path.join(PATH_RESULTS, file_name), 'wb'))
+    plot_dist(results, params, PATH_RESULTS)
     plot_runtime(results, params, PATH_RESULTS)
     plot_ef(results, params, PATH_RESULTS)
 
@@ -1105,7 +1054,7 @@ def run_experiments(num_experiments=1, iters=40, num_threads=20, dim=60, lr=0.6,
     #     json.dump(params, json_file, indent=4)
 
     # dummy experiment
-    dummy_strat = run_dummy_exp(gamma_list=[2e-5, 5e-5, 0.0001, 0.001, 0.01], PATH_RESULTS=PATH_RESULTS)
+    dummy_strat = run_dummy_exp(gamma_list=[ 0.01, 0.05, 0.1, 1, 10, 1000], PATH_RESULTS=PATH_RESULTS)
 
     def plot_error(data, label='', fill=False, obj=plt):
         if isinstance(label, list) is False:
@@ -1132,7 +1081,7 @@ def run_experiments(num_experiments=1, iters=40, num_threads=20, dim=60, lr=0.6,
               'expected return vs uniform', 'variance vs RANE', 'variance vs NE', 'variance vs uniform',
               'variance exploitability', 'entropy']
 
-    for j in range(len(metrics)):  # loop over all the different charts to create
+    for j in range(len(titles)):  # loop over all the different charts to create
         fig_handle = plt.figure()
 
         if psro_risk:
@@ -1213,8 +1162,8 @@ def run_experiments(num_experiments=1, iters=40, num_threads=20, dim=60, lr=0.6,
     plt.savefig(os.path.join(PATH_RESULTS, 'convergence.pdf'))
 
 if __name__ == "__main__":
-    sampling_list = ['uniform', 't', 'normal']
-    #sampling_list = ['t', 'normal']
+    #sampling_list = ['uniform', 't', 'normal']
+    sampling_list = ['normal']
     for sampling in sampling_list:
         for dim in args.dim_list:
 
